@@ -25,3 +25,4 @@ Migrations/*Designer.cs
 
 # Secrets
 appsettings.Development.json
+appsettings.json

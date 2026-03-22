@@ -16,12 +16,15 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
-    public async Task<ActionResult<AuthResponseDto>> Login(UserAuthenticateDto userDto)
+    public async Task<ActionResult<TokenDto>> Login(UserAuthenticateDto userDto)
     {
         try
         {
-            var authResponse = await _authService.AuthenticateUserAsync(userDto.Email, userDto.Password);
-            return Ok(authResponse);
+            AuthResponseDto authResponse = await _authService.AuthenticateUserAsync(userDto.Email, userDto.Password);
+
+            await StoreRefreshTokenInCookie(authResponse.RefreshToken);
+
+            return Ok(authResponse.AccessToken);
         }
         catch (UnauthorizedAccessException)
         {
@@ -30,16 +33,56 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("refresh")]
-    public async Task<ActionResult<AuthResponseDto>> RefreshToken(TokenRequestDto request)
+    public async Task<ActionResult<TokenDto>> RefreshToken()
     {
         try
         {
-            var authResponse = await _authService.RefreshTokenAsync(request.RefreshToken);
-            return Ok(authResponse);
+            string? refreshToken = Request.Cookies["refreshToken"];
+            AuthResponseDto authResponse = await _authService.RefreshTokenAsync(refreshToken);
+
+            await StoreRefreshTokenInCookie(authResponse.RefreshToken);
+
+            return Ok(authResponse.AccessToken);
         }
         catch (UnauthorizedAccessException)
         {
             return Unauthorized("Invalid refresh token.");
         }
+    }
+
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout()
+    {
+        string? refreshToken = Request.Cookies["refreshToken"];
+
+        await _authService.RevokeRefreshTokenAsync(refreshToken);
+
+        Response.Cookies.Delete("refreshToken");
+
+        return Ok();
+    }
+
+    [HttpPost("logout/all")]
+    public async Task<IActionResult> LogoutForEveryone()
+    {
+        await _authService.RevokeUserTokensAsync();
+
+        Response.Cookies.Delete("refreshToken");
+
+        return Ok();
+    }
+
+    private async Task StoreRefreshTokenInCookie(RefreshTokenDto refreshToken)
+    {
+        var cookieOptions = new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = false,
+            SameSite = SameSiteMode.Lax,
+            Expires = refreshToken.Expiration,
+            Path = "/"
+        };
+
+        Response.Cookies.Append("refreshToken", refreshToken.Token, cookieOptions);
     }
 }

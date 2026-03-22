@@ -2,7 +2,6 @@ using Application.DTOs;
 using Application.Interfaces;
 using AutoMapper;
 using Domain.Entities;
-using Microsoft.AspNetCore.Http;
 
 namespace Application.Services;
 
@@ -60,8 +59,13 @@ public class AuthService : IAuthService
         }
     }
 
-    public async Task<AuthResponseDto> RefreshTokenAsync(string token)
+    public async Task<AuthResponseDto> RefreshTokenAsync(string? token)
     {
+        if (string.IsNullOrEmpty(token))
+        {
+            throw new UnauthorizedAccessException("Refresh token is required.");
+        }
+
         var now = _dataService.GetCurrentDate();
 
         // Start transaction (prevents race conditions)
@@ -119,14 +123,50 @@ public class AuthService : IAuthService
         };
     }
 
-    public Task RevokeRefreshTokenAsync(string refreshToken)
+    public async Task RevokeRefreshTokenAsync(string? token)
     {
-        throw new NotImplementedException();
+        if (string.IsNullOrEmpty(token))
+        {
+            throw new UnauthorizedAccessException("Refresh token is required.");
+        }
+
+        var now = _dataService.GetCurrentDate();
+
+        var existingToken = await _tokenRepo.GetByTokenAsync(token);
+
+        // 1. Validate token existence
+        if (existingToken == null)
+            throw new UnauthorizedAccessException("Invalid refresh token.");
+
+        // 2. Detect reuse (CRITICAL SECURITY CHECK)
+        if (existingToken.IsRevoked)
+        {
+            // 🚨 Token reuse detected → possible attack
+            await _tokenRepo.RemoveAllForUserAsync(existingToken.UserId);
+
+            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.CommitAsync();
+
+            throw new UnauthorizedAccessException("Token reuse detected. All sessions revoked.");
+        }
+
+        // 3. Check expiry
+        if (existingToken.Expiration < now)
+            throw new UnauthorizedAccessException("Refresh token expired.");
+
+        // 4. Revoke current token (rotation)
+        existingToken.IsRevoked = true;
+        existingToken.RevokedAt = now;
+
+        await _unitOfWork.SaveChangesAsync();
     }
 
-    public Task RevokeUserTokensAsync(Guid userId)
+    public async Task RevokeUserTokensAsync()
     {
-        throw new NotImplementedException();
+        Guid userId = _currentUserService.UserId ?? throw new UnauthorizedAccessException("User not authenticated.");
+
+        await _tokenRepo.RemoveAllForUserAsync(userId);
+        await _unitOfWork.SaveChangesAsync();
     }
 
     private async Task<RefreshToken> AddRefreshTokenAsync(Guid userId)
