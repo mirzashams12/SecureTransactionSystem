@@ -22,7 +22,6 @@ public class UserRepository : IUserRepository
     public async Task<User> AddAsync(User user)
     {
         _context.Users.Add(user);
-        await _context.SaveChangesAsync();
         return new User { Id = user.Id, Name = user.Name, Email = user.Email, CreatedAt = user.CreatedAt, UpdatedAt = user.UpdatedAt };
     }
 
@@ -42,7 +41,6 @@ public class UserRepository : IUserRepository
         }
 
         _context.Users.Remove(user);
-        await _context.SaveChangesAsync();
         return true;
     }
 
@@ -66,7 +64,6 @@ public class UserRepository : IUserRepository
         existingUser.UpdatedAt = user.UpdatedAt;
 
         _context.Users.Update(existingUser);
-        await _context.SaveChangesAsync();
 
         return new User { Id = existingUser.Id, Name = existingUser.Name, Email = existingUser.Email, CreatedAt = existingUser.CreatedAt, UpdatedAt = existingUser.UpdatedAt };
     }

@@ -13,13 +13,17 @@ public class UserService : IUserService
     private readonly IDataService _dateService;
     private readonly IMapper _mapper;
     private readonly ITokenService _tokenService;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IWalletService _walletService;
 
     public UserService(IGuidService guidService,
                         IUserRepository repo,
                         IPasswordHasher passwordHasher,
                         IDataService dateService,
                         IMapper mapper,
-                        ITokenService tokenService)
+                        ITokenService tokenService,
+                        IUnitOfWork unitOfWork,
+                        IWalletService walletService)
     {
         _guidService = guidService;
         _repo = repo;
@@ -27,6 +31,8 @@ public class UserService : IUserService
         _dateService = dateService;
         _mapper = mapper;
         _tokenService = tokenService;
+        _unitOfWork = unitOfWork;
+        _walletService = walletService;
     }
 
     public async Task<List<UserDto>> GetAllUsersAsync()
@@ -37,6 +43,7 @@ public class UserService : IUserService
 
     public async Task<UserDto> CreateUserAsync(UserCreateDto userDto)
     {
+        await _unitOfWork.BeginTransactionAsync();
         User user = _mapper.Map<User>(userDto);
         user.Id = _guidService.GetGuid();
         user.PasswordHash = _passwordHasher.HashPassword(userDto.Password);
@@ -44,6 +51,13 @@ public class UserService : IUserService
         user.UpdatedAt = _dateService.GetCurrentDate();
 
         User result = await _repo.AddAsync(user);
+
+        //create wallet for a user on user creation
+        await _walletService.CreateWalletAsync(result.Id);
+
+        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.CommitAsync();
+
         return _mapper.Map<UserDto>(result);
     }
 
