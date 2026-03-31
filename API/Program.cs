@@ -50,11 +50,13 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddTransient<IDataService, DateService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
-builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<IWalletService, WalletService>();
 
 //register repositories
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITokenRepository, TokenRepository>();
+builder.Services.AddScoped<IWalletRepository, WalletRepository>();
 
 
 //Mappers

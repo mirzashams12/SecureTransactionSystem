@@ -8,7 +8,7 @@ public class RefreshToken
     public bool IsRevoked { get; set; }
     public DateTime RevokedAt { get; set; }
     public string? ReplacedByToken { get; set; }
-    public Guid UserId { get; set; }
+    public Guid UserId { get; set; } = default!;
     public User User { get; set; } = null!;
     public string? CreatedByIp { get; set; }
     public DateTime CreatedAt { get; set; }

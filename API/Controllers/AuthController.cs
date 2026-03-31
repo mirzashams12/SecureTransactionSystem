@@ -1,6 +1,8 @@
 using Application.DTOs;
 using Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 
 namespace API.Controllers;
 
@@ -9,10 +11,12 @@ namespace API.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly IUserService _userService;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, IUserService userService)
     {
         _authService = authService;
+        _userService = userService;
     }
 
     [HttpPost("login")]
@@ -47,6 +51,26 @@ public class AuthController : ControllerBase
         catch (UnauthorizedAccessException)
         {
             return Unauthorized("Invalid refresh token.");
+        }
+    }
+
+    [HttpPost("register")]
+    public async Task<IActionResult> RegisterUser(UserCreateDto userDto)
+    {
+        try
+        {
+            var user = await _userService.CreateUserAsync(userDto);
+            return Ok(user);
+        }
+        catch (DbUpdateException ex)
+        when (ex.InnerException is SqlException sqlEx &&
+              (sqlEx.Number == 2627 || sqlEx.Number == 2601))
+        {
+            return BadRequest("User already exists");
+        }
+        catch (Exception)
+        {
+            return StatusCode(500, "Something went wrong");
         }
     }
 

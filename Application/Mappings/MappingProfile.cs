@@ -14,5 +14,7 @@ public class MappingProfile : Profile
         CreateMap<UserAuthenticateDto, User>();
 
         CreateMap<RefreshToken, RefreshTokenDto>();
+
+        CreateMap<Wallet, WalletDto>();
     }
 }

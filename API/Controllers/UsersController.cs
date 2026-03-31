@@ -12,10 +12,12 @@ namespace API.Controllers;
 public class UsersController : ControllerBase
 {
     private readonly IUserService _userService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public UsersController(IUserService userService)
+    public UsersController(IUserService userService, ICurrentUserService currentUserService)
     {
         _userService = userService;
+        _currentUserService = currentUserService;
     }
 
     [HttpGet]
@@ -32,17 +34,18 @@ public class UsersController : ControllerBase
         return Ok(user);
     }
 
+    [HttpGet("profile")]
+    public async Task<ActionResult<UserDto>> GetProfile()
+    {
+        Guid userId = _currentUserService.UserId ?? Guid.Empty;
+        UserDto user = await _userService.GetUserByIdAsync(userId);
+        return Ok(user);
+    }
+
     [HttpGet("email/{email}")]
     public async Task<ActionResult<UserDto>> GetUserByEmail(string email)
     {
         var user = await _userService.GetUserByEmailAsync(email);
-        return Ok(user);
-    }
-
-    [HttpPost]
-    public async Task<IActionResult> CreateUser(UserCreateDto userDto)
-    {
-        var user = await _userService.CreateUserAsync(userDto);
         return Ok(user);
     }
 
